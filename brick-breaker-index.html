@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brick Breaker Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+        #restartButton {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #restartButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="765" height="600"></canvas>
+    <p id="controlText">Use ← and → to move the paddle</p>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        // 删除以下行
+        // const restartButton = document.getElementById('restartButton');
+
+        // 颜色
+        const WHITE = '#FFFFFF';
+        const BLACK = '#000000';
+        const RED = '#FF0000';
+        const YELLOW = '#FFFF00';
+        const BLUE = '#0000FF';
+        const GREEN = '#00FF00';
+
+        const BRICK_COLORS = [RED, YELLOW, BLUE, GREEN, WHITE];
+
+        // 游戏对象
+        let paddle, ball, bricks;
+        let gameRunning = true;
+
+        // 初始球速度
+        const INITIAL_BALL_SPEED_X = 3;
+        const INITIAL_BALL_SPEED_Y = -3;
+
+        function initGame() {
+            paddle = {
+                width: 100,
+                height: 10,
+                x: 332, // 调整初始位置
+                y: 580,
+                speed: 5
+            };
+
+            ball = {
+                size: 10,
+                x: 377, // 调整初始位置
+                y: 290,
+                speedX: INITIAL_BALL_SPEED_X,
+                speedY: INITIAL_BALL_SPEED_Y
+            };
+
+            bricks = [];
+            const brickWidth = 80;
+            const brickHeight = 30;
+            const brickGap = 5;
+            const sideGap = (canvas.width - (9 * brickWidth + 8 * brickGap)) / 2;
+
+            for (let i = 0; i < 5; i++) {
+                for (let j = 0; j < 9; j++) {
+                    bricks.push({
+                        x: j * (brickWidth + brickGap) + sideGap,
+                        y: i * (brickHeight + brickGap) + brickGap,
+                        width: brickWidth,
+                        height: brickHeight,
+                        color: BRICK_COLORS[Math.floor(Math.random() * BRICK_COLORS.length)]
+                    });
+                }
+            }
+
+            gameRunning = true;
+        }
+
+        // 新增: 跟踪按键状态
+        const keys = {
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+
+        // 游戏循环
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 更新游戏状态
+        function update() {
+            if (!gameRunning) return;
+
+            // 更新paddle位置
+            if (keys.ArrowLeft && paddle.x > 0) {
+                paddle.x -= paddle.speed;
+            }
+            if (keys.ArrowRight && paddle.x + paddle.width < canvas.width) {
+                paddle.x += paddle.speed;
+            }
+
+            // 移动球
+            ball.x += ball.speedX;
+            ball.y += ball.speedY;
+
+            // 球碰到墙壁
+            if (ball.x <= 0 || ball.x + ball.size >= canvas.width) {
+                ball.speedX = -ball.speedX;
+            }
+            if (ball.y <= 0) {
+                ball.speedY = -ball.speedY;
+            }
+
+            // 球碰到挡板
+            if (ball.y + ball.size >= paddle.y && ball.x + ball.size >= paddle.x && ball.x <= paddle.x + paddle.width) {
+                ball.speedY = -ball.speedY;
+            }
+
+            // 球碰到砖块
+            for (let i = bricks.length - 1; i >= 0; i--) {
+                const brick = bricks[i];
+                if (ball.x + ball.size >= brick.x && ball.x <= brick.x + brick.width &&
+                    ball.y + ball.size >= brick.y && ball.y <= brick.y + brick.height) {
+                    ball.speedY = -ball.speedY;
+                    bricks.splice(i, 1);
+                    break;
+                }
+            }
+
+            // 游戏结束条件
+            if (ball.y + ball.size >= canvas.height) {
+                gameRunning = false;
+            }
+        }
+
+        // 绘制游戏对象
+        function draw() {
+            ctx.fillStyle = BLACK;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = BLUE;
+            ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+
+            ctx.fillStyle = WHITE;
+            ctx.beginPath();
+            ctx.arc(ball.x + ball.size / 2, ball.y + ball.size / 2, ball.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+
+            bricks.forEach(brick => {
+                ctx.fillStyle = brick.color;
+                ctx.fillRect(brick.x, brick.y, brick.width, brick.height);
+            });
+
+            if (!gameRunning) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = WHITE;
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Game Over', canvas.width / 2, canvas.height / 2);
+                ctx.font = '20px Arial';
+                ctx.fillText('Press Space to Restart', canvas.width / 2, canvas.height / 2 + 40);
+            }
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+            }
+            if (e.key === ' ' && !gameRunning) {
+                initGame();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = false;
+            }
+        });
+
+        // 初始化游戏
+        initGame();
+
+        // 开始游戏
+        gameLoop();
+    </script>
+</body>
+</html>
